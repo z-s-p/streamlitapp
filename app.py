@@ -38,40 +38,46 @@ features2 = [
 
 data = {}
 
-col = st.columns(6)
-for k, i in enumerate(features1+features2):
-    if k<36:
-        data[i] = col[k%6].number_input(i, value=df[i].tolist()[1])
-    else:
-        if i=="race":
-            data[i] = RACE[col[k%6].selectbox(i, RACE, index=list(RACE.values()).index(df[i].tolist()[1]))]
+with st.form("input"):
+    col = st.columns(6)
+    for k, i in enumerate(features1+features2):
+        if k<36:
+            data[i] = col[k%6].number_input(i, value=df[i].tolist()[1])
         else:
-            data[i] = BOOL[col[k%6].selectbox(i, BOOL, index=list(RACE.values()).index(df[i].tolist()[1]))]
+            if i=="race":
+                data[i] = RACE[col[k%6].selectbox(i, RACE, index=list(RACE.values()).index(df[i].tolist()[1]))]
+            else:
+                data[i] = BOOL[col[k%6].selectbox(i, BOOL, index=list(RACE.values()).index(df[i].tolist()[1]))]
+    col = st.columns(5)
+    submit_button = col[2].form_submit_button("Start predict", use_container_width=True)
     
+if submit_button:
+    # 创建一个新的模型实例  
+    model = xgb.XGBClassifier()  
 
-# 创建一个新的模型实例  
-model = xgb.XGBClassifier()  
+    # 从JSON文件加载模型  
+    model.load_model('xgboost_model.json')  
 
-# 从JSON文件加载模型  
-model.load_model('xgboost_model.json')  
+    # 现在可以使用 loaded_model 进行预测  
+    res = model.predict(pd.DataFrame([data]))
+    res_proba = model.predict_proba(pd.DataFrame([data]))
 
-# 现在可以使用 loaded_model 进行预测  
-res = model.predict(pd.DataFrame([data]))
-res_proba = model.predict_proba(pd.DataFrame([data]))
-if res_proba[0][-1]<=0.3:
-    res_proba = res_proba[0][-1]
-    color = "green"
-    res = "Low risk"
-elif 0.3<=res_proba[0][-1]<=0.6:
-    res_proba = res_proba[0][-1]
-    color = "orange"
-    res = "Medium risk"
+    if res_proba[0][-1]<=0.3:
+        res_proba = res_proba[0][-1]
+        color = "green"
+        res = "Low risk"
+    elif 0.3<=res_proba[0][-1]<=0.6:
+        res_proba = res_proba[0][-1]
+        color = "orange"
+        res = "Medium risk"
+    else:
+        res_proba = res_proba[0][-1]
+        color = "red"
+        res = "High risk"
+    
+    st.markdown(f'''
+        <div style="font-size: 28px; text-align: center; color: black; background: transparent; border-radius: .5rem; border: 1px solid red; padding: 1rem; font-weight: bold;">
+        Predict result: <span style="color:{color}; font-weight: bold;">{res}.</span>
+        </div>''', unsafe_allow_html=True) # , probability: {round(res_proba*100, 3)}%.
 else:
-    res_proba = res_proba[0][-1]
-    color = "red"
-    res = "High risk"
-    
-st.markdown(f'''
-    <div style="font-size: 28px; text-align: center; color: black; background: transparent; border-radius: .5rem; border: 1px solid red; padding: 1rem; font-weight: bold;">
-    Predict result: <span style="color:{color}; font-weight: bold;">{res}.</span>
-    </div>''', unsafe_allow_html=True) # , probability: {round(res_proba*100, 3)}%.
+    st.warning("**Please click 'Start predict' button start your predict!**")
